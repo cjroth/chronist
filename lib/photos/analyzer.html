@@ -1,0 +1,172 @@
+<div>
+    <span>percent complete: </span>
+    <span id="percent-complete">0</div>
+</div>
+<script src="../../node_modules/webrtc-adapter/out/adapter.js"></script>
+<script src="https://download.affectiva.com/js/3.1/affdex.js"></script>
+
+<script>
+const fs = require('fs')
+const path = require('path')
+const EventEmitter = require('events')
+const dottie = require('dottie')
+const moment = require('moment')
+const { ipcRenderer, remote } = require('electron')
+const CSV = require('big-csv')
+const header = JSON.parse(fs.readFileSync(`${__dirname}/./header.json`))
+
+const argv = remote.getGlobal('argv')
+
+window.onerror = error => {
+    ipcRenderer.send('error', error)
+    remote.getCurrentWindow().close()
+}
+
+class PhotoCapturer extends EventEmitter {
+
+    constructor(config) {
+        super()
+        this.canvas = document.createElement('canvas')
+        this.startTime = Date.now()
+        this.detector = null
+        this.queue = []
+        this.completed = []
+        this.currentFilePath = null
+        this.size = 0
+        Object.assign(this, config)
+    }
+
+    start() {
+        this.initQueue().then(this.initDetector.bind(this))
+    }
+
+    initQueue() {
+        this.csv = new CSV(this.filepath)
+        return this.csv.read().then(results => {
+            let result = Promise.resolve()
+            if (this.csv.header === null) {
+                result = this.csv.writeHeader(header)
+            }
+            result.then(_ => {
+                this.completed = results.map(item => item.path)
+                let all = fs.readdirSync(path.resolve(this.photoDir)).filter(item => /.jpg$/.test(item))
+                this.queue = all.filter(item => this.completed.indexOf(item) === -1)
+                this.size = all.length
+                this.update({ total: this.size, complete: this.completed.length })
+            })
+        })
+    }
+
+    next() {
+        this.currentFilePath = this.queue.shift()
+        if (this.currentFilePath === undefined) {
+            this.onComplete()
+            return
+        }
+        let percentComplete = Math.round((this.size - this.queue.length) / this.size * 10000) / 100
+        document.querySelector('#percent-complete').innerText = percentComplete
+        this.update({ complete: this.completed.length })
+        this.processImage(this.currentFilePath)
+    }
+
+    processImage(filePath, done) {
+        this.loadImage(path.join(this.photoDir, filePath))
+        let context = this.canvas.getContext('2d')
+        let imageData = context.getImageData(0, 0, this.canvas.width, this.canvas.height)
+        this.detector.process(imageData)
+    }
+
+    onDetectorStop() {
+    }
+
+    onDetectorReset() {
+    }
+
+    onDetectorReady() {
+        this.log('detector initialized')
+        this.next()
+    }
+
+    onComplete() {
+        this.log('done!')
+        ipcRenderer.send('complete')
+    }
+
+    onDetectorResult(faces, image, timestamp) {
+        try {
+            let pathInfo = path.parse(this.currentFilePath)
+            let date = moment(pathInfo.name, 'YYYY-MM-DDTHH:mm:ss')
+            let result = Object.assign({}, faces[0], {
+                faces: faces.length,
+                path: pathInfo.base,
+                date: date.format('YYYY-MM-DD'),
+                time: date.format('HH:mm:ss')
+            })
+            this.csv.write(result)
+            this.completed.push(this.currentFilePath)
+        } catch(e) {
+            console.error('error parsing file name', this.currentFilePath, e)
+        }
+        this.next()
+    }
+
+    initDetector() {
+
+        let faceMode = affdex.FaceDetectorMode.LARGE_FACES;
+        let detector = this.detector = new affdex.PhotoDetector(faceMode)
+
+        this.detector.addEventListener('onInitializeSuccess', this.onDetectorReady.bind(this))
+        this.detector.addEventListener('onImageResultsSuccess', this.onDetectorResult.bind(this))
+        this.detector.addEventListener("onResetSuccess", this.onDetectorReset.bind(this))
+        this.detector.addEventListener("onStopSuccess", this.onDetectorStop.bind(this))
+
+        this.detector.addEventListener('onImageResultsFailure', console.error)
+        this.detector.addEventListener('onInitializeFailure', console.error)
+        this.detector.addEventListener('onResetFailure', console.error)
+        this.detector.addEventListener('onStopFailure', console.error)
+
+        this.detector.detectExpressions.smile = true
+        this.detector.detectEmotions.joy = true
+        this.detector.detectAppearance.gender = true
+
+        this.detector.detectAllExpressions()
+        this.detector.detectAllEmotions()
+        this.detector.detectAllEmojis()
+        this.detector.detectAllAppearance()
+
+        this.log('detector started')
+        this.detector.start()
+
+    }
+
+    loadImage(filePath) {
+        var image = new Image()
+        image.src = 'data:image/jpeg;base64,' + fs.readFileSync(filePath).toString('base64');
+        let context = this.canvas.getContext('2d')
+        this.canvas.width = image.width
+        this.canvas.height = image.height
+        context.drawImage(image, 0, 0)
+    }
+
+    log(...messages) {
+        messages.unshift(Date.now() - this.startTime)
+        console.log(...messages)
+        ipcRenderer.send('log', ...messages)
+    }
+
+    update(status) {
+        ipcRenderer.send('update', status)
+    }
+
+}
+
+pc = new PhotoCapturer({
+    photoDir: process.env.input,
+    filepath: process.env.output
+})
+
+pc.start()
+
+window.pc = pc
+
+</script>
