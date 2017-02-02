@@ -5,11 +5,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Specify which participant to analyze and how to resample and roll up the data
-participant = 'a'
+participant = 'b'
 resample_rule = '1d'
 rolling_mean_window = 60
-# scale = (-1, 1)
-scale = None
+scale = (-1, 1)
+# scale = None
 timeframe = ('2010-01-01', '2017-02-01')
 
 data_dir = 'data/' + participant
