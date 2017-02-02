@@ -8,5 +8,7 @@ const argv = require('yargs')
     .command('dayone', 'Output sentiment analysis of Day One entries to CSV', require('./lib/dayone'))
     .command('750words', 'Output sentiment analysis of 750 entries to CSV', require('./lib/750words'))
     .help()
-    .showHelp()
-    .argv
+
+if (argv.argv._.length === 0) {
+    argv.showHelp()
+}
