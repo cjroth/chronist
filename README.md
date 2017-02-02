@@ -2,7 +2,7 @@
 
 Long-term analysis of emotion, sentiment, and aging using photos and text.
 
-![](docs/screenshots/screenshot-rodeo.png)
+![](/docs/screenshots/screenshot-rodeo.png)
 
 Chronist is a multifaceted project consisting of:
 
@@ -18,7 +18,7 @@ If you are interested in hearing more about this project, contributing your data
 
 Chronist's command-line tools were written in Javascript/ES6 for Node.js and its data processing scripts were written in Python.
 
-![](docs/screenshots/screenshot-cli-lifeslice.png)
+![](/docs/screenshots/screenshot-cli-lifeslice.png)
 
 <!-- ![](docs/screenshots/screenshot-convert.png) -->
 
@@ -47,7 +47,7 @@ chronist photos ~/Desktop/photos
 ```
 
 #### Facebook
-First you'll need to [download your Facebook data](docs/facebook.md), then you can run the sentiment analysis on your Facebook messages - make sure to specify your first and last name as they appear on Facebook with `-n`. The results will be saved as a CSV on your Desktop by default.
+First you'll need to [download your Facebook data](/docs/facebook.md), then you can run the sentiment analysis on your Facebook messages - make sure to specify your first and last name as they appear on Facebook with `-n`. The results will be saved as a CSV on your Desktop by default.
 ```
 chronist facebook -i ~/Desktop/messages.htm -n “Chris Roth”
 ```
@@ -59,13 +59,13 @@ chronist imessage
 ```
 
 #### 750 Words
-First [download your 750 Words entries](docs/750words.md), then run the sentiment analysis on your entries. The results will be saved as a CSV on your Desktop by default.
+First [download your 750 Words entries](/docs/750words.md), then run the sentiment analysis on your entries. The results will be saved as a CSV on your Desktop by default.
 ```
 chronist 750words -i ~/Desktop/750words
 ```
 
 #### Day One
-First [export your Day One journal entries](docs/dayone.md), then run the sentiment analysis on the JSON export. The results will be saved as a CSV on your Desktop by default.
+First [export your Day One journal entries](/docs/dayone.md), then run the sentiment analysis on the JSON export. The results will be saved as a CSV on your Desktop by default.
 ```
 chronist dayone -i ~/Desktop/journal.json
 ```
