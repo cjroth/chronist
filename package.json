@@ -3,8 +3,7 @@
   "version": "1.0.3",
   "description": "Long-term analysis of emotion, sentiment, and aging using photos and text.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "install": "pip install -r requirements.txt"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Chris Roth <chris@cjroth.com>",
   "license": "MIT",
