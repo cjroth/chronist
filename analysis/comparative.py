@@ -3,14 +3,18 @@ import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
 
 # Specify which participant to analyze and how to resample and roll up the data
-participant = 'a'
+participant = 'c'
 resample_rule = '1d'
-rolling_mean_window = 60
+rolling_mean_window = 30
 # scale = (-1, 1)
 scale = None
 timeframe = ('2010-01-01', '2017-02-01')
+
+if (not os.path.isdir('data')):
+    raise Exception('Data directory does not exist. Are you sure you running this from the right directory?')
 
 data_dir = 'data/' + participant
 if (not os.path.isdir(data_dir)):
@@ -18,12 +22,13 @@ if (not os.path.isdir(data_dir)):
 
 # Specify which datasets to look for, which columns to use, and how to draw their lines on the chart
 datasets = [
-    # dataset      column                    linetype
-    ('lifeslice',  'emotions.valence',       'g-'),
-    ('imessage',   'sentiment.comparative',  'r-'),
-    ('facebook',   'sentiment.comparative',  'b-'),
-    ('dayone',     'sentiment.comparative',  'y-'),
-    ('750words',   'sentiment.comparative',  'm-')
+    # dataset      column                    datatype       linetype
+    ('lifeslice',  'emotions.valence',       'scale',       'g-'),
+    ('imessage',   'sentiment.comparative',  'scale',       'r-'),
+    ('facebook',   'sentiment.comparative',  'scale',       'b-'),
+    ('dayone',     'sentiment.comparative',  'scale',       'y-'),
+    ('750words',   'sentiment.comparative',  'scale',       'm-'),
+    ('lifeslice',  'appearance.age',         'category',    'm-'),
 ]
 
 # Specify how we define outliers
@@ -35,10 +40,44 @@ def find_outliers(series):
     
 # Create a function to normalize values from -1 to 1
 def normalize(series):
-    return (series - series.mean()) / (series.max() - series.min())
+    min = series.min()
+    max = series.max()
+    return ((series - min) / (max - min) - 0.5) * 2
+    
+def prepare_category(csv, column):
+    
+    # Read the csv, merging `date` and `time` columns into a single `date_time` column of type Timestamp and use this as the index
+    raw = pd.read_csv(csv, parse_dates=[['date', 'time']], index_col=['date_time']).dropna()
+    
+    # Convert the age column to categories
+    prepared = raw[column].astype('category')
+    
+    # Remove datum that are not definite age ranges
+    prepared = prepared.cat.remove_categories(['Under 18','65+'])
+    prepared = prepared.dropna()
 
+    # Map age ranges to their mean age
+    prepared = prepared.apply(lambda x: {
+        '18 - 24' : 21.0,
+        '25 - 34' : 29.5,
+        '35 - 44' : 39.5,
+        '45 - 54' : 49.5,
+        '55 - 64' : 59.5
+    }[x]).astype('float')
+    
+    # Resample by taking the mean value of each day
+    prepared = prepared.resample(resample_rule).mean()
+    
+    # Fill in empty days by using the mean of surrounding days
+    prepared = prepared.fillna(prepared.mean())
+    
+    # Calculate the rolling mean (aka simple moving average)
+    prepared = prepared.rolling(rolling_mean_window, center=True).mean()
+    
+    return prepared, raw
+    
 # Define a function that takes a csv file path and prepares the data to be analyzed and charted
-def prepare(csv, column):
+def prepare_scale(csv, column):
 
     # Read the csv, merging `date` and `time` columns into a single `date_time` column of type Timestamp and use this as the index
     raw = pd.read_csv(csv, parse_dates=[['date', 'time']], index_col=['date_time']).dropna()
@@ -51,9 +90,6 @@ def prepare(csv, column):
     number_outliers = number_total - number_remaining
     print("{csv}: Total Rows: {number_total} Outliers Removed: {number_outliers} Rows Remaining: {number_remaining}".format(**locals()))
     
-    # Normalize values to a range of -1 to 1
-    raw[column] = normalize(raw[column])
-    
     # Resample by taking the mean value of each day
     prepared = raw[column].resample(resample_rule).mean()
     
@@ -63,11 +99,14 @@ def prepare(csv, column):
     # Calculate the rolling mean (aka simple moving average)
     prepared = prepared.rolling(rolling_mean_window, center=True).mean()
     
+    # Normalize values to a range of -1 to 1
+    prepared = normalize(prepared)
+    
     # Print the start and end dates
     range = tuple(i.strftime('%Y-%m-%d') for i in (prepared.index[0], prepared.index[-1]))
     print("{csv}: Date Range: {range[0]} to {range[1]}".format(**locals()))
 
-    return prepared
+    return prepared, raw
 
 # Create a new dataframe to hold the resampled, cleaned data for analysis
 index = pd.date_range(*(datetime.datetime.strptime(i, '%Y-%m-%d') for i in timeframe))
@@ -82,9 +121,10 @@ if scale != None:
 # Prepare data and chart it
 for pair in datasets:
     
-    dataset = pair[0]
-    column = pair[1]
-    linetype = pair[2]
+    dataset  = pair[0]
+    column   = pair[1]
+    datatype = pair[2]
+    linetype = pair[3]
     
     # Define where the dataset CSV lives
     csv = data_dir + '/' + dataset + '.csv'
@@ -93,7 +133,10 @@ for pair in datasets:
     if (not os.path.exists(csv)):
         continue
     
-    data[dataset + '.' + column] = prepare(csv, column)
+    if (datatype == 'scale'):
+        data[dataset + '.' + column], raw = prepare_scale(csv, column)
+    else:
+        data[dataset + '.' + column], raw = prepare_category(csv, column)
 
     # Add the sentiment comparative rolling mean to the chart
     ax.plot(data.index, data[dataset + '.' + column], linetype)
