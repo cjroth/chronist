@@ -4,9 +4,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
+from bokeh.layouts import gridplot
+from bokeh.plotting import figure, show, output_file
 
 # Specify which participant to analyze and how to resample and roll up the data
-participant = 'c'
+participant = 'a'
 resample_rule = '1d'
 rolling_mean_window = 30
 # scale = (-1, 1)
@@ -118,8 +120,22 @@ fig.autofmt_xdate()
 if scale != None:
     ax.set_ylim(*scale)
 
+# Set up a Bokeh chart
+p1 = figure(x_axis_type='datetime', title='Chronist')
+p1.grid.grid_line_alpha = 0.3
+p1.xaxis.axis_label = 'Date'
+p1.yaxis.axis_label = 'Value'
+p1.legend.location = 'top_left'
+
+chart = [
+    'lifeslice.emotions.valence',
+    'imessage.sentiment.comparative',
+]
+
+colors = ['#B2DF8A', '#A6CEE3']
+
 # Prepare data and chart it
-for pair in datasets:
+for index, pair in enumerate(datasets):
     
     dataset  = pair[0]
     column   = pair[1]
@@ -129,14 +145,24 @@ for pair in datasets:
     # Define where the dataset CSV lives
     csv = data_dir + '/' + dataset + '.csv'
     
+    label = dataset + '.' + column
+    
     # Skip this dataset if it does not exist for the participant
     if (not os.path.exists(csv)):
         continue
     
     if (datatype == 'scale'):
-        data[dataset + '.' + column], raw = prepare_scale(csv, column)
+        data[label], raw = prepare_scale(csv, column)
     else:
-        data[dataset + '.' + column], raw = prepare_category(csv, column)
+        data[label], raw = prepare_category(csv, column)
 
-    # Add the sentiment comparative rolling mean to the chart
-    ax.plot(data.index, data[dataset + '.' + column], linetype)
+
+    if label in chart:
+        
+        # Add the sentiment comparative rolling mean to the chart
+        ax.plot(data.index, data[label], linetype)
+    
+        p1.line(np.array(data.index, dtype=np.datetime64), data[label], color=colors[index], legend=label)
+
+output_file('public/' + participant + '.html', title='Chronist: Participant ' + participant.upper() + ' Visualization')
+show(gridplot([[p1]], responsive=True)) # open a browser
