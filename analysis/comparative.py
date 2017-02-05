@@ -3,7 +3,6 @@ import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
 from bokeh.layouts import gridplot
 from bokeh.plotting import figure, show, output_file
 
