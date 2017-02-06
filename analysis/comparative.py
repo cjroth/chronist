@@ -3,16 +3,17 @@ import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from bokeh.layouts import gridplot
-from bokeh.plotting import figure, show, output_file
+import plotly as py
+import cufflinks as cf
+py.tools.set_credentials_file(username='cjroth', api_key='N7E7pw9PBszV5t4DVQqu')
 
 # Specify which participant to analyze and how to resample and roll up the data
 participant = 'a'
 resample_rule = '1d'
-rolling_mean_window = 30
+rolling_mean_window = 60
 # scale = (-1, 1)
 scale = None
-timeframe = ('2010-01-01', '2017-02-01')
+timeframe = ('2016-04-01', '2017-02-01')
 
 if (not os.path.isdir('data')):
     raise Exception('Data directory does not exist. Are you sure you running this from the right directory?')
@@ -25,11 +26,11 @@ if (not os.path.isdir(data_dir)):
 datasets = [
     # dataset      column                    datatype       linetype
     ('lifeslice',  'emotions.valence',       'scale',       'g-'),
-    ('imessage',   'sentiment.comparative',  'scale',       'r-'),
-    ('facebook',   'sentiment.comparative',  'scale',       'b-'),
-    ('dayone',     'sentiment.comparative',  'scale',       'y-'),
-    ('750words',   'sentiment.comparative',  'scale',       'm-'),
-    ('lifeslice',  'appearance.age',         'category',    'm-'),
+    # ('imessage',   'sentiment.comparative',  'scale',       'r-'),
+    # ('facebook',   'sentiment.comparative',  'scale',       'b-'),
+    # ('dayone',     'sentiment.comparative',  'scale',       'y-'),
+    # ('750words',   'sentiment.comparative',  'scale',       'm-'),
+    # ('lifeslice',  'appearance.age',         'category',    'm-'),
 ]
 
 # Specify how we define outliers
@@ -111,6 +112,24 @@ def prepare_scale(csv, column):
 
     return prepared, raw
 
+def prepare(raw):
+    
+    # Remove rows with empty values
+    raw = raw.dropna()
+
+    # Remove outliers outside of the interquartile range (IQR) * 1.5
+    # number_total = raw.size
+    outliers = find_outliers(raw)
+    raw = raw[~outliers]
+    # number_remaining = raw.size
+    # number_outliers = number_total - number_remaining
+    # print("Total Rows: {number_total} Outliers Removed: {number_outliers} Rows Remaining: {number_remaining}".format(**locals()))
+
+    # Normalize values to a range of -1 to 1
+    raw = normalize(raw)
+    
+    return raw
+
 # Create a new dataframe to hold the resampled, cleaned data for analysis
 index = pd.date_range(*(datetime.datetime.strptime(i, '%Y-%m-%d') for i in timeframe))
 data = pd.DataFrame(index=index)
@@ -167,5 +186,79 @@ for index, pair in enumerate(datasets):
 
 data.to_csv(data_dir + '/combined.csv')
 
-output_file('public/' + participant + '.html', title='Chronist: Participant ' + participant.upper() + ' Visualization')
-show(gridplot([[p1]], responsive=True)) # open a browser
+# py.plotly.plot([{
+#     'x': data.index,
+#     'y': data[col],
+#     'name': col
+# }  for col in data.columns], filename='chronist', kind='scatter')
+
+# output_file('public/' + participant + '.html', title='Chronist: Participant ' + participant.upper() + ' Visualization')
+# show(gridplot([[p1]], responsive=True)) # open a browser
+
+
+
+
+
+
+
+
+# https://plot.ly/pandas/time-series/
+
+# cf.datagen.lines(1,500).ta_plot(study='sma',periods=[13,21,55],title='Simple Moving Averages')
+
+
+import plotly.graph_objs as go
+
+# upper_bound = go.Scatter(
+#     name='Upper Bound',
+#     x=df['Time'],
+#     y=df['10 Min Sampled Avg']+df['10 Min Std Dev'],
+#     mode='lines',
+#     marker=dict(color="444"),
+#     line=dict(width=0),
+#     fillcolor='rgba(68, 68, 68, 0.3)',
+#     fill='tonexty' )
+
+raw = prepare(raw['emotions.valence'])
+
+trace_markers = go.Scatter(
+    name='lifeslice.emotions.valence',
+    x=raw.index,
+    y=raw,
+    mode="markers",
+    # line=dict(color='rgb(31, 119, 180)'),
+    # fillcolor='rgba(68, 68, 68, 0.3)',
+)
+
+trace = go.Scatter(
+    name=data['lifeslice.emotions.valence'],
+    x=data.index,
+    y=data['lifeslice.emotions.valence'],
+    mode="lines",
+    line=dict(color='rgb(31, 119, 180)'),
+    # fillcolor='rgba(68, 68, 68, 0.3)',
+    fill='tonexty' )
+
+# lower_bound = go.Scatter(
+#     name='Lower Bound',
+#     x=df['Time'],
+#     y=df['10 Min Sampled Avg']-df['10 Min Std Dev'],
+#     marker=dict(color="444"),
+#     line=dict(width=0),
+#     mode='lines' )
+
+# Trace order can be important
+# with continuous error bars
+# data = [lower_bound, trace, upper_bound]
+d = [trace_markers, trace]
+
+layout = go.Layout(
+    yaxis=dict(title='Wind speed (m/s)'),
+    title='Continuous, variable value error bars',
+    showlegend = False)
+fig = go.Figure(data=d, layout=layout)
+
+# IPython notebook
+# py.iplot(fig, filename='pandas-time-series-error-bars')
+
+url = py.plotly.plot(fig, filename='chronist')
