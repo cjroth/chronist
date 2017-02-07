@@ -68,6 +68,7 @@ def prepare_category(csv, column):
     }[x]).astype('float')
 
     # Resample by taking the mean value of each day
+    # http://pandas.pydata.org/pandas-docs/stable/timeseries.html#sparse-resampling
     prepared = prepared.resample(resample_rule).mean()
 
     # Fill in empty days by using the mean of surrounding days
@@ -95,6 +96,7 @@ def prepare_scale(csv, column):
     prepared = raw[column]
 
     # Resample by taking the mean value of each day
+    # http://pandas.pydata.org/pandas-docs/stable/timeseries.html#sparse-resampling
     prepared = raw[column].resample(resample_rule).mean()
 
     # Fill in empty days by using the mean of surrounding days
@@ -261,4 +263,4 @@ fig = go.Figure(data=d, layout=layout)
 # IPython notebook
 # py.iplot(fig, filename='pandas-time-series-error-bars')
 
-url = py.plotly.plot(fig, filename='chronist')
+url = py.plotly.plot(fig, filename='chronist', world_readable=False)
