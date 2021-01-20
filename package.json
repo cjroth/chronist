@@ -17,7 +17,7 @@
     "moment": "^2.15.0",
     "progress": "^1.1.8",
     "sentiment": "^2.1.0",
-    "socket.io": "^1.7.2",
+    "socket.io": "^2.4.0",
     "socket.io-client": "^1.7.2",
     "username": "^2.3.0",
     "webrtc-adapter": "^3.1.0",
