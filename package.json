@@ -11,7 +11,7 @@
     "async": "^2.1.4",
     "big-csv": "^0.0.1",
     "dottie": "^2.0.0",
-    "electron": "1.4.15",
+    "electron": "9.4.0",
     "imessage": "^0.1.5",
     "jsdom": "^9.6.0",
     "moment": "^2.15.0",
