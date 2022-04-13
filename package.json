@@ -8,7 +8,7 @@
   "author": "Chris Roth <chris@cjroth.com>",
   "license": "MIT",
   "dependencies": {
-    "async": "^2.1.4",
+    "async": "^3.2.2",
     "big-csv": "^0.0.1",
     "dottie": "^2.0.0",
     "electron": "1.4.15",
